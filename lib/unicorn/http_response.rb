@@ -24,6 +24,8 @@ module Unicorn::HttpResponse
                           req = Unicorn::HttpRequest.new)
     hijack = nil
 
+    logger = (req.env['action_dispatch.logger'] || req.env['rack.logger']) if req.env['REQUEST_URI'] == '/api/scenarios'
+    logger&.info "#{Time.now.utc} #{req.env['REQUEST_URI']}, sending headers!"
     if headers
       code = status.to_i
       msg = STATUS_CODES[code]
@@ -50,12 +52,14 @@ module Unicorn::HttpResponse
       end
       socket.write(buf << "\r\n".freeze)
     end
+    logger&.info "#{Time.now.utc} #{req.env['REQUEST_URI']}, sent headers hijack #{hijack.inspect}"
 
     if hijack
       req.hijacked!
       hijack.call(socket)
     else
       body.each { |chunk| socket.write(chunk) }
+      logger&.info "#{Time.now.utc} #{req.env['REQUEST_URI']} sent body"
     end
   end
 end
